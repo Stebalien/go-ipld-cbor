@@ -279,6 +279,9 @@ func traverse(obj interface{}, cur string, cb func(string, interface{}) error) e
 			if !ok {
 				return errors.New("map key was not a string")
 			}
+			if strings.ContainsRune(ks, '/') {
+				return errors.New("map keys must not contain '/'")
+			}
 			this := cur + "/" + ks
 			if err := traverse(v, this, cb); err != nil {
 				return err
@@ -356,24 +359,14 @@ func (n Node) MarshalJSON() ([]byte, error) {
 }
 
 func toSaneMap(n map[interface{}]interface{}) (interface{}, error) {
-	if lnk, ok := n["/"]; ok && len(n) == 1 {
-		lnkb, ok := lnk.([]byte)
-		if !ok {
-			return nil, fmt.Errorf("link value should have been bytes")
-		}
-
-		c, err := cid.Cast(lnkb)
-		if err != nil {
-			return nil, err
-		}
-
-		return map[string]interface{}{"/": c}, nil
-	}
 	out := make(map[string]interface{})
 	for k, v := range n {
 		ks, ok := k.(string)
 		if !ok {
 			return nil, fmt.Errorf("map keys must be strings")
+		}
+		if strings.ContainsRune(ks, '/') {
+			return nil, fmt.Errorf("map keys must not contain '/'")
 		}
 
 		obj, err := convertToJsonIsh(v)
